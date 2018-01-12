@@ -455,19 +455,28 @@ class App extends Component {
 		let trackObj = { closeToLimit: [], parOne: [], parTwo: [] };
 		let allocLimit = 0;
 		let closeToLimit = 0;
+		const prevBondInvestAmt = bucketInfo.previousAllocatedBond.investAmt;
+		const sector = bucketInfo.sector;
 		const firstPrice = bucketInfo.previousAllocatedBond.price /100;
 		const secondPrice = bucketInfo.chosenBond.price / 100;
 		const calledBy = bucketInfo.calledBy;
 		const maxAllocPerBond = this.state.maxPercBond * this.state.investedAmount;
-
+debugger;
 	   	if( calledBy === 'HealthCare' ){
-			allocLimit = bucketInfo.maxHealthCare;
+			allocLimit = bucketInfo.maxHealthCare - ( bucketInfo.allocSector['Health Care'] - prevBondInvestAmt );
+
 		}else if( calledBy === 'NY' ){
-			allocLimit = bucketInfo.maxNYState;
+			allocLimit = bucketInfo.maxNYState - ( bucketInfo.allocState['NY'] - prevBondInvestAmt );
+		
 		}else if( calledBy === 'CA' ){
-			allocLimit = bucketInfo.maxCAState;
+			allocLimit = bucketInfo.maxCAState - ( bucketInfo.allocState['CA'] - prevBondInvestAmt );
+
 		}else if( calledBy === 'sector' ){
-			allocLimit = bucketInfo.maxSector;
+			allocLimit = bucketInfo.maxSector - ( bucketInfo.allocSector.sector - prevBondInvestAmt );
+
+		}else if( calledBy === 'aAndBelow' ){
+			allocLimit = bucketInfo.maxAandBelow - ( bucketInfo.allocRating['aAndBelow'] - prevBondInvestAmt );
+
 		}
 
 		const tradePars = this.state.tradePars;
@@ -586,6 +595,13 @@ class App extends Component {
 			checkRating !== 'AA' ? checkedRating = true : checkedRating = false;
 			checkRatingOrState = checkedRating;
 			currentAllocation = allocRating['aAndBelow'];
+			if( ranking === 'aRated' || ranking === 'aaRated' || ranking === 'couponRated' ){
+				if( allocatedData[checkBucket][allocatedDataLength].state === 'NY' ||
+					 allocatedData[checkBucket][allocatedDataLength].state === 'CA' ||	
+					 allocatedData[checkBucket][allocatedDataLength].sector === 'Health Care'){
+					checkRatingOrState = false;
+				}	
+			}
 		}else if( calledBy === 'NY' || calledBy === 'CA' ){
 			checkState = allocatedData[checkBucket][allocatedDataLength].state;
 			checkRatingOrState = checkState === state;
@@ -594,6 +610,13 @@ class App extends Component {
 			checkSector = allocatedData[checkBucket][allocatedDataLength].sector;
 			checkRatingOrState = checkSector === sector;
 			currentAllocation = allocSector[sector];
+			if( ranking === 'aRated' || ranking === 'aaRated' || ranking === 'couponRated' ){
+				if( allocatedData[checkBucket][allocatedDataLength].state === 'NY' ||
+					 allocatedData[checkBucket][allocatedDataLength].state === 'CA' ||	
+					 allocatedData[checkBucket][allocatedDataLength].sector === 'Health Care'){
+					checkRatingOrState = false;
+				}	
+			}
 		}
 
 		while( !checkRatingOrState && !checkedAll ){
@@ -621,12 +644,27 @@ class App extends Component {
 			if( calledBy === 'aAndBelow' ){
 				checkRating = allocatedData[checkBucket][allocatedDataLength].rating.slice(0,2);
 				if( checkRating !== 'AA' ) checkRatingOrState = true;
+				if( ranking === 'aRated' || ranking === 'aaRated' || ranking === 'couponRated' ){
+					if( allocatedData[checkBucket][allocatedDataLength].state === 'NY' ||
+						 allocatedData[checkBucket][allocatedDataLength].state === 'CA' ||	
+						 allocatedData[checkBucket][allocatedDataLength].sector === 'Health Care'){
+						checkRatingOrState = false;
+					}	
+				}
 			}else if(  calledBy === 'NY' || calledBy === 'CA' ){
 				checkState = allocatedData[checkBucket][allocatedDataLength].state;
 				if( checkState === state ) checkRatingOrState = true;
 			}else if( calledBy === 'sector' || calledBy === 'HealthCare' ){
 				checkSector = allocatedData[checkBucket][allocatedDataLength].sector;
 				if( checkSector === sector ) checkRatingOrState = true;
+				if( ranking === 'aRated' || ranking === 'aaRated' || ranking === 'couponRated' ){
+					if( allocatedData[checkBucket][allocatedDataLength].state === 'NY' ||
+						 allocatedData[checkBucket][allocatedDataLength].state === 'CA' ||	
+						 allocatedData[checkBucket][allocatedDataLength].sector === 'Health Care'){
+						checkRatingOrState = false;
+					}	
+				}
+
 			}
 
 		}
@@ -635,7 +673,7 @@ class App extends Component {
 
 			previousAllocatedBond = allocatedData[checkBucket][allocatedDataLength];
 			bucketInfo.previousAllocatedBond = previousAllocatedBond;
-			debugger;
+			//debugger;
 			let parCombination = this.optimize(bucketInfo);
 			let prevBondAlloc = parCombination[0] * previousAllocatedBond.price / 100;
 			let chosenBondNewAlloc = parCombination[1] * chosenBond.price / 100;
@@ -1122,7 +1160,7 @@ class App extends Component {
 				minIncrementToAllocate = ( allocatedCash ) / ( minIncrement * ( price * 1 / 100 ) );
 				minIncrementToAllocate = Math.floor( minIncrementToAllocate ) * ( minIncrement * ( price * 1 / 100 ) );
 
-				if( minIncrementToAllocate > 0 && minIncrementToAllocate <= allocationLimit ){
+				if( minIncrementToAllocate > 0 && minIncrementToAllocate <= allocationLimit && ( currentAllocation + minIncrementToAllocate <= this.state.maxPercBond * this.state.investedAmount ) ){
 					bucket[bucketLength].investAmt = allocatedCash - minIncrementToAllocate;
 					bucket[i].investAmt += minIncrementToAllocate;
 					if( bucket[i].state === 'NY' ) allocState['NY'] += minIncrementToAllocate;
