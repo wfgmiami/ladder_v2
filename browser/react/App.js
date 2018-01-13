@@ -467,7 +467,7 @@ debugger;
 
 		}else if( calledBy === 'NY' ){
 			allocLimit = bucketInfo.maxNYState - ( bucketInfo.allocState['NY'] - prevBondInvestAmt );
-		
+
 		}else if( calledBy === 'CA' ){
 			allocLimit = bucketInfo.maxCAState - ( bucketInfo.allocState['CA'] - prevBondInvestAmt );
 
@@ -597,10 +597,10 @@ debugger;
 			currentAllocation = allocRating['aAndBelow'];
 			if( ranking === 'aRated' || ranking === 'aaRated' || ranking === 'couponRated' ){
 				if( allocatedData[checkBucket][allocatedDataLength].state === 'NY' ||
-					 allocatedData[checkBucket][allocatedDataLength].state === 'CA' ||	
+					 allocatedData[checkBucket][allocatedDataLength].state === 'CA' ||
 					 allocatedData[checkBucket][allocatedDataLength].sector === 'Health Care'){
 					checkRatingOrState = false;
-				}	
+				}
 			}
 		}else if( calledBy === 'NY' || calledBy === 'CA' ){
 			checkState = allocatedData[checkBucket][allocatedDataLength].state;
@@ -612,10 +612,10 @@ debugger;
 			currentAllocation = allocSector[sector];
 			if( ranking === 'aRated' || ranking === 'aaRated' || ranking === 'couponRated' ){
 				if( allocatedData[checkBucket][allocatedDataLength].state === 'NY' ||
-					 allocatedData[checkBucket][allocatedDataLength].state === 'CA' ||	
+					 allocatedData[checkBucket][allocatedDataLength].state === 'CA' ||
 					 allocatedData[checkBucket][allocatedDataLength].sector === 'Health Care'){
 					checkRatingOrState = false;
-				}	
+				}
 			}
 		}
 
@@ -646,10 +646,10 @@ debugger;
 				if( checkRating !== 'AA' ) checkRatingOrState = true;
 				if( ranking === 'aRated' || ranking === 'aaRated' || ranking === 'couponRated' ){
 					if( allocatedData[checkBucket][allocatedDataLength].state === 'NY' ||
-						 allocatedData[checkBucket][allocatedDataLength].state === 'CA' ||	
+						 allocatedData[checkBucket][allocatedDataLength].state === 'CA' ||
 						 allocatedData[checkBucket][allocatedDataLength].sector === 'Health Care'){
 						checkRatingOrState = false;
-					}	
+					}
 				}
 			}else if(  calledBy === 'NY' || calledBy === 'CA' ){
 				checkState = allocatedData[checkBucket][allocatedDataLength].state;
@@ -659,10 +659,10 @@ debugger;
 				if( checkSector === sector ) checkRatingOrState = true;
 				if( ranking === 'aRated' || ranking === 'aaRated' || ranking === 'couponRated' ){
 					if( allocatedData[checkBucket][allocatedDataLength].state === 'NY' ||
-						 allocatedData[checkBucket][allocatedDataLength].state === 'CA' ||	
+						 allocatedData[checkBucket][allocatedDataLength].state === 'CA' ||
 						 allocatedData[checkBucket][allocatedDataLength].sector === 'Health Care'){
 						checkRatingOrState = false;
-					}	
+					}
 				}
 
 			}
@@ -778,6 +778,32 @@ debugger;
 				}
 				if ( bucketControl['nextBucket'] !== null ) bucketControl['nextBucket'] = null;
 			}
+		}else{
+			let par = allocatedAmount / ( chosenBond.price / 100 );
+			for ( let p = par; p >= 25000; p -= 5000 ){
+				aAndBelowLimitCheck = allocRating['aAndBelow'];
+				let tryAlloc = p * chosenBond.price / 100;
+
+				if( calledBy === 'aAndBelow' ){
+					if ( aAndBelowLimitCheck + tryAlloc <= maxAandBelow ){
+						currentBucketState.amountAllocated += tryAlloc;
+						allocSector[sector] += tryAlloc;
+						allocRating['aAndBelow'] += tryAlloc;
+						chosenBond.investAmt = tryAlloc;
+						allocatedData[bucket].push( chosenBond );
+
+						if( ranking === 'aRated' || ranking === 'caMunis' || ranking === 'nyMunis' || ranking === 'HealthCare' ){
+							bucketState.bucketStateKeys.forEach( bucket => {
+								if( bucketState[bucket].currentRankIndex === rankIndex ){
+									bucketState[bucket].currentRankIndex++;
+									bucketState[bucket].currentBondIndex = 0;
+								}
+							})
+						}
+					}
+
+				}
+			}
 		}
 	}
 
@@ -840,7 +866,7 @@ debugger;
 					}while( bondIdx <  bucketMunis.length && size * testPrice / 100 > maxBondSize )
 					allocSize = size;
 					if( allocSize * testPrice / 100 <= maxBondSize ) break;
-					bondIdx = 0;
+					bondIdx = argsObj.currentBucketState.currentBondIndex;
 				}
 
 				if( allocSize * testPrice / 100 > maxBondSize ){
