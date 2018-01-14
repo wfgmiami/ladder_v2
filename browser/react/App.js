@@ -371,7 +371,8 @@ class App extends Component {
 				minIncrementToAllocate = ( bucketMoney - allocBucket[bucket] ) / ( minIncrement * (  adjustedBond.price * 1 / 100 ) );
 				minIncrementToAllocate = Math.floor( minIncrementToAllocate ) * ( minIncrement *  adjustedBond.price * 1 / 100 );
 
-				if( ( previousAllocatedBond['investAmt'] + minIncrementToAllocate ) > this.state.maxPercBond * this.state.investedAmount ){
+				if( ( previousAllocatedBond['investAmt'] + minIncrementToAllocate ) > this.state.maxPercBond * this.state.investedAmount ||
+				( ( previousAllocatedBond['investAmt'] + minIncrementToAllocate ) / ( previousAllocatedBond.price / 100 ) ) > this.state.maxAllocBond ){
 
 					cashObject['cusip'] = 'Cash';
 					cashObject['investAmt'] = allocateToCash;
@@ -409,7 +410,6 @@ class App extends Component {
 
 				minIncrementToAllocate = Math.floor( minIncrementToAllocate ) * ( minIncrement * previousAllocatedBond.price * 1 / 100 );
 
-				console.log('............previousAllocatedBond--', previousAllocatedBond);
 				sectorLimitCheck += minIncrementToAllocate;
 				if( previousAllocatedBond.state === 'NY' ) nyStateLimitCheck += minIncrementToAllocate;
 				if( previousAllocatedBond.state === 'CA' ) caStateLimitCheck += minIncrementToAllocate;
@@ -417,7 +417,7 @@ class App extends Component {
 
 				if( ( previousAllocatedBond.sector === 'Health Care' && sectorLimitCheck  > maxHealthCare )
 				|| ( sectorLimitCheck > maxSector ) || ( nyStateLimitCheck > maxNYState || caStateLimitCheck > maxCAState )
-				|| ( aAndBelowLimitCheck > maxAandBelow ) || ( previousAllocatedBond['investAmt'] + minIncrementToAllocate ) > this.state.maxPercBond * this.state.investedAmount ){
+				|| ( aAndBelowLimitCheck > maxAandBelow ) || ( previousAllocatedBond['investAmt'] + minIncrementToAllocate ) > this.state.maxPercBond * this.state.investedAmount || ( ( previousAllocatedBond['investAmt'] + minIncrementToAllocate ) / ( previousAllocatedBond.price / 100 ) ) > this.state.maxAllocBond ){
 
 					allocateToCash = bucketMoney - allocBucket[bucket];
 
@@ -472,7 +472,7 @@ debugger;
 			allocLimit = bucketInfo.maxCAState - ( bucketInfo.allocState['CA'] - prevBondInvestAmt );
 
 		}else if( calledBy === 'sector' ){
-			allocLimit = bucketInfo.maxSector - ( bucketInfo.allocSector.sector - prevBondInvestAmt );
+			allocLimit = bucketInfo.maxSector - ( bucketInfo.allocSector[sector] - prevBondInvestAmt );
 
 		}else if( calledBy === 'aAndBelow' ){
 			allocLimit = bucketInfo.maxAandBelow - ( bucketInfo.allocRating['aAndBelow'] - prevBondInvestAmt );
@@ -562,7 +562,7 @@ debugger;
 			ranking === 'HealthCare' ? rankIndex = 0 : null;
 		}
 
-
+debugger;
 		allocSector[sector] -= allocatedAmount;
 		allocBucket[bucket] -= allocatedAmount;
 		currentBucketState.amountAllocated -= allocatedAmount;
@@ -595,7 +595,7 @@ debugger;
 			checkRating !== 'AA' ? checkedRating = true : checkedRating = false;
 			checkRatingOrState = checkedRating;
 			currentAllocation = allocRating['aAndBelow'];
-			if( ranking === 'aRated' || ranking === 'aaRated' || ranking === 'couponRated' ){
+			if( ranking === 'aRated' || ranking === 'aaRated' || ranking === 'couponRated' || ranking === 'nyMunis' || ranking === 'caMunis' ){
 				if( allocatedData[checkBucket][allocatedDataLength].state === 'NY' ||
 					 allocatedData[checkBucket][allocatedDataLength].state === 'CA' ||
 					 allocatedData[checkBucket][allocatedDataLength].sector === 'Health Care'){
@@ -610,11 +610,17 @@ debugger;
 			checkSector = allocatedData[checkBucket][allocatedDataLength].sector;
 			checkRatingOrState = checkSector === sector;
 			currentAllocation = allocSector[sector];
-			if( ranking === 'aRated' || ranking === 'aaRated' || ranking === 'couponRated' ){
+			if( ranking === 'aRated' || ranking === 'aaRated' || ranking === 'couponRated' || ranking === 'nyMunis' || ranking === 'caMunis' ){
+
 				if( allocatedData[checkBucket][allocatedDataLength].state === 'NY' ||
 					 allocatedData[checkBucket][allocatedDataLength].state === 'CA' ||
 					 allocatedData[checkBucket][allocatedDataLength].sector === 'Health Care'){
 					checkRatingOrState = false;
+				}
+				if( ranking === 'aaRated' || ranking === 'couponRated' ){
+					if( allocatedData[checkBucket][allocatedDataLength].rating.slice(0,2) !== 'AA' ){
+						checkRatingOrState = false;
+					}
 				}
 			}
 		}
@@ -626,7 +632,8 @@ debugger;
 				if( ++checkBucket > lastBucket ){
 					checkBucket = availableBuckets[0];
 					currBucketIdx = 0;
-					allocatedDataLength = allocatedData[checkBucket].length - 1;
+					if( !allocatedData[checkBucket] ) checkBucket = bucket;
+						allocatedDataLength = allocatedData[checkBucket].length - 1;
 					if( checkBucket === bucket ) checkedAll = true;
 				}else{
 					checkBucket = availableBuckets[++currBucketIdx];
@@ -641,32 +648,36 @@ debugger;
 				}
 			}
 
-			if( calledBy === 'aAndBelow' ){
+			if( calledBy === 'aAndBelow' && !checkedAll ){
 				checkRating = allocatedData[checkBucket][allocatedDataLength].rating.slice(0,2);
 				if( checkRating !== 'AA' ) checkRatingOrState = true;
-				if( ranking === 'aRated' || ranking === 'aaRated' || ranking === 'couponRated' ){
+				if( ranking === 'aRated' || ranking === 'aaRated' || ranking === 'couponRated' || ranking === 'nyMunis' || ranking === 'caMunis' ){
 					if( allocatedData[checkBucket][allocatedDataLength].state === 'NY' ||
 						 allocatedData[checkBucket][allocatedDataLength].state === 'CA' ||
 						 allocatedData[checkBucket][allocatedDataLength].sector === 'Health Care'){
 						checkRatingOrState = false;
 					}
 				}
-			}else if(  calledBy === 'NY' || calledBy === 'CA' ){
+			}else if( ( calledBy === 'NY' || calledBy === 'CA' ) && !checkedAll ){
 				checkState = allocatedData[checkBucket][allocatedDataLength].state;
 				if( checkState === state ) checkRatingOrState = true;
-			}else if( calledBy === 'sector' || calledBy === 'HealthCare' ){
+			}else if( ( calledBy === 'sector' || calledBy === 'HealthCare' ) && !checkedAll ){
 				checkSector = allocatedData[checkBucket][allocatedDataLength].sector;
+
 				if( checkSector === sector ) checkRatingOrState = true;
-				if( ranking === 'aRated' || ranking === 'aaRated' || ranking === 'couponRated' ){
+				if( ranking === 'aRated' || ranking === 'aaRated' || ranking === 'couponRated' || ranking === 'nyMunis' || ranking === 'caMunis' ){
 					if( allocatedData[checkBucket][allocatedDataLength].state === 'NY' ||
 						 allocatedData[checkBucket][allocatedDataLength].state === 'CA' ||
 						 allocatedData[checkBucket][allocatedDataLength].sector === 'Health Care'){
 						checkRatingOrState = false;
 					}
+					if( ranking === 'aaRated' || ranking === 'couponRated' ){
+						if( allocatedData[checkBucket][allocatedDataLength].rating.slice(0,2) !== 'AA' ){
+							checkRatingOrState = false;
+						}
+					}
 				}
-
 			}
-
 		}
 
 		if( !checkedAll ){
@@ -680,13 +691,16 @@ debugger;
 
 			minIncrementToAllocate = prevBondAlloc + chosenBondNewAlloc - previousAllocatedBond.investAmt;
 			let prevAllocBondChange = prevBondAlloc - previousAllocatedBond.investAmt;
-			sectorLimitCheck = allocSector[previousAllocatedBond.sector];
+			let sectorLimitCheckPrev = allocSector[previousAllocatedBond.sector];
+			let sectorLimitCheckChosen = allocSector[chosenBond.sector];
+
 			nyStateLimitCheck = allocState['NY'];
 			caStateLimitCheck = allocState['CA'];
 			aAndBelowLimitCheck = allocRating['aAndBelow'];
 
+			sectorLimitCheckPrev += prevAllocBondChange;
+			sectorLimitCheckChosen += chosenBondNewAlloc;
 
-			sectorLimitCheck += minIncrementToAllocate;
 			if( previousAllocatedBond.state === 'NY' ) nyStateLimitCheck += prevAllocBondChange;
 			if( previousAllocatedBond.state === 'CA' ) caStateLimitCheck += prevAllocBondChange;
 			if( previousAllocatedBond.rating.slice(0,2) !== 'AA' ) aAndBelowLimitCheck += prevAllocBondChange;
@@ -696,7 +710,7 @@ debugger;
 			if( chosenBond.rating.slice(0,2) !== 'AA' ) aAndBelowLimitCheck += chosenBondNewAlloc;
 
 			if( ( previousAllocatedBond.sector === 'Health Care' && sectorLimitCheck > maxHealthCare )
-			|| ( sectorLimitCheck > maxSector ) || ( nyStateLimitCheck > maxNYState || caStateLimitCheck > maxCAState )
+			|| ( sectorLimitCheckPrev > maxSector ) || ( sectorLimitCheckChosen > maxSector ) || ( nyStateLimitCheck > maxNYState || caStateLimitCheck > maxCAState || parCombination.length === 0 )
 			|| ( aAndBelowLimitCheck > maxAandBelow ) ){
 				sectorLimitCheck = allocSector[previousAllocatedBond.sector];
 				nyStateLimitCheck = allocState['NY'];
@@ -714,7 +728,9 @@ debugger;
 				if( ( previousAllocatedBond.sector === 'Health Care' && sectorLimitCheck > maxHealthCare )
 					|| ( sectorLimitCheck > maxSector ) || ( nyStateLimitCheck > maxNYState || caStateLimitCheck > maxCAState )
 					|| ( aAndBelowLimitCheck > maxAandBelow ) || ( previousAllocatedBond['investAmt'] + minIncrementToAllocate ) > this.state.maxPercBond * this.state.investedAmount ){
-					if ( bucketControl['nextBucket'] === null ) bucketControl['nextBucket'] = bucket;
+
+						if ( bucketControl['nextBucket'] === null ) bucketControl['nextBucket'] = bucket;
+
 				}else{
 
 				//currentBucketState.amountAllocated += chosenBondNewAlloc;
@@ -747,16 +763,18 @@ debugger;
 				allocBucket[bucket] += chosenBondNewAlloc;
 				currentBucketState.amountAllocated += chosenBondNewAlloc;
 				allocBucket[checkBucket] += prevBondAlloc - previousAllocatedBond.investAmt;
-				allocSector[sector] += minIncrementToAllocate;
+
 				previousAllocatedBond['investAmt'] += prevBondAlloc - previousAllocatedBond.investAmt;
 
 				if( previousAllocatedBond.rating.slice(0,2) !== 'AA' ) allocRating['aAndBelow'] += prevAllocBondChange;
 				if( previousAllocatedBond.state === 'NY' ) allocState['NY'] += prevAllocBondChange;
 				if( previousAllocatedBond.state === 'CA' ) allocState['CA'] += prevAllocBondChange;
+				allocSector[previousAllocatedBond.sector] += prevAllocBondChange;
 
 				if( chosenBond.rating.slice(0,2) !== 'AA' ) allocRating['aAndBelow'] += chosenBondNewAlloc;
 				if( chosenBond.state === 'NY' ) allocState['NY'] += chosenBondNewAlloc;
 				if( chosenBond.state === 'CA' ) allocState['CA'] += chosenBondNewAlloc;
+				allocSector[chosenBond.sector] += chosenBondNewAlloc;
 				chosenBond.investAmt = chosenBondNewAlloc;
 				allocatedData[bucket].push( chosenBond );
 
@@ -769,29 +787,23 @@ debugger;
 					})
 				}
 
-				if( calledBy === 'aAndBelow' ){
-					bucketInfo.aAndBelowAdjustedBond =	previousAllocatedBond;
-				}else if( calledBy === 'NY' || calledBy === 'CA' ){
-					bucketInfo.stateAdjustedBond = previousAllocatedBond;
-				}else if( calledBy === 'sector' || calledBy === 'HealthCare' ){
-					bucketInfo.sectorAdjustedBond = previousAllocatedBond;
-				}
 				if ( bucketControl['nextBucket'] !== null ) bucketControl['nextBucket'] = null;
 			}
 		}else{
 			let par = allocatedAmount / ( chosenBond.price / 100 );
-			for ( let p = par; p >= 25000; p -= 5000 ){
+			for ( let p = par; p >= this.state.minAllocBond; p -= this.state.minIncrement ){
 				aAndBelowLimitCheck = allocRating['aAndBelow'];
 				let tryAlloc = p * chosenBond.price / 100;
 
 				if( calledBy === 'aAndBelow' ){
 					if ( aAndBelowLimitCheck + tryAlloc <= maxAandBelow ){
 						currentBucketState.amountAllocated += tryAlloc;
+						allocBucket[bucket] += tryAlloc;
 						allocSector[sector] += tryAlloc;
 						allocRating['aAndBelow'] += tryAlloc;
 						chosenBond.investAmt = tryAlloc;
 						allocatedData[bucket].push( chosenBond );
-
+						if ( bucketControl['nextBucket'] !== null ) bucketControl['nextBucket'] = null;
 						if( ranking === 'aRated' || ranking === 'caMunis' || ranking === 'nyMunis' || ranking === 'HealthCare' ){
 							bucketState.bucketStateKeys.forEach( bucket => {
 								if( bucketState[bucket].currentRankIndex === rankIndex ){
@@ -974,7 +986,7 @@ debugger;
 			currentRankIndex = bucketState[bucket]['currentRankIndex'];
 			currentBondIndex = bucketState[bucket]['currentBondIndex'];
 //			if(bucket===14 && currentBondIndex===0) debugger;
-			debugger;
+			//debugger;
 			if( currentRankIndex < ranking.length ){
 
 				chosenBond = muniData[bucket][ranking[currentRankIndex]][currentBondIndex];
@@ -1186,7 +1198,7 @@ debugger;
 				minIncrementToAllocate = ( allocatedCash ) / ( minIncrement * ( price * 1 / 100 ) );
 				minIncrementToAllocate = Math.floor( minIncrementToAllocate ) * ( minIncrement * ( price * 1 / 100 ) );
 
-				if( minIncrementToAllocate > 0 && minIncrementToAllocate <= allocationLimit && ( currentAllocation + minIncrementToAllocate <= this.state.maxPercBond * this.state.investedAmount ) ){
+				if( minIncrementToAllocate > 0 && minIncrementToAllocate <= allocationLimit && ( bucket[i].investAmt + minIncrementToAllocate <= this.state.maxPercBond * this.state.investedAmount ) && ( ( bucket[i].investAmt + minIncrementToAllocate ) / ( bucket[i].price / 100 ) ) > this.state.maxAllocBond ){
 					bucket[bucketLength].investAmt = allocatedCash - minIncrementToAllocate;
 					bucket[i].investAmt += minIncrementToAllocate;
 					if( bucket[i].state === 'NY' ) allocState['NY'] += minIncrementToAllocate;
@@ -1241,10 +1253,17 @@ debugger;
 
 						}
 
-						minIncrementToAllocate = ( allocatedCash ) / ( minIncrement * ( price * 1 / 100 ) );
-						minIncrementToAllocate = Math.floor( minIncrementToAllocate ) * ( minIncrement * ( price * 1 / 100 ) );
+						minIncrementToAllocate = ( allocatedCash ) / ( this.state.minAllocBond * ( price * 1 / 100 ) );
+						minIncrementToAllocate = Math.floor( minIncrementToAllocate ) * ( this.state.minAllocBond * ( price * 1 / 100 ) );
+						// let addExtraAlloc = 0;
+						// do{
+						// 	addExtraAlloc += minIncrement * ( price * 1 / 100 );
+						// }	while( minIncrementToAllocate + addExtraAlloc <= allocationLimit && minIncrementToAllocate + addExtraAlloc <= this.state.maxPercBond * this.state.investedAmount )
 
-						if( minIncrementToAllocate > 0 && minIncrementToAllocate <= allocationLimit ){
+						// addExtraAlloc -= minIncrement * ( price * 1 / 100 );
+						// minIncrementToAllocate += addExtraAlloc;
+
+						if( minIncrementToAllocate > 0 && minIncrementToAllocate <= allocationLimit && ( minIncrementToAllocate <= this.state.maxPercBond * this.state.investedAmount ) && ( minIncrementToAllocate / ( bucket[i].price / 100 ) ) <= this.state.maxAllocBond ){
 							bucket[bucketLength].investAmt = allocatedCash - minIncrementToAllocate;
 							testBond.investAmt = 0 + minIncrementToAllocate;
 
