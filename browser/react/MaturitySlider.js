@@ -48,9 +48,9 @@ class MaturitySlider extends React.Component{
 
 					<div className="range-slider-double">
 						<div> &nbsp;</div><div>&nbsp;</div>
-						<input onInput={ (e) => this.sliderChange(e) } ref = { input => this.inputMin = input } className="range-slider-double__range" type="range" value={ this.state.min }  min="1" max="50" step="1"/>
+						<input onInput={ (e) => this.sliderChange(e) } ref = { input => this.inputMin = input } className="range-slider-double__range" type="range" value={ this.state.min }  min="1" max="30" step="1"/>
 
-						<input onInput={ (e) => this.sliderChange(e) } ref = { input => this.inputMax = input } className="range-slider-double__range" type="range" value={ this.state.max }  min="1" max="50" step="1"/>
+						<input onInput={ (e) => this.sliderChange(e) } ref = { input => this.inputMax = input } className="range-slider-double__range" type="range" value={ this.state.max }  min="1" max="30" step="1"/>
 						<div>&nbsp;</div>
 					</div>
 
